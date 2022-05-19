@@ -1,4 +1,4 @@
-package ravioli.gravioli.guiyo.gui.event.partition;
+package ravioli.gravioli.stategui.gui.event.partition;
 
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -6,7 +6,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import ravioli.gravioli.guiyo.Menu;
+import ravioli.gravioli.stategui.Menu;
 
 import java.util.Objects;
 

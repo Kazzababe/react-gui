@@ -1,4 +1,4 @@
-package ravioli.gravioli.guiyo.gui.event;
+package ravioli.gravioli.stategui.gui.event;
 
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;

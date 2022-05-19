@@ -1,4 +1,4 @@
-package ravioli.gravioli.guiyo;
+package ravioli.gravioli.stategui;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -8,9 +8,8 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
-import ravioli.gravioli.guiyo.gui.partition.RootPartition;
+import ravioli.gravioli.stategui.gui.partition.RootPartition;
 
-import java.util.Optional;
 import java.util.function.Consumer;
 
 public class Menu {

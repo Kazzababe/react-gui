@@ -1,53 +1,93 @@
-package ravioli.gravioli.guiyo.gui.partition;
+package ravioli.gravioli.stategui.gui.partition;
 
 import com.google.common.base.Preconditions;
+import com.google.gson.JsonArray;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.util.io.BukkitObjectOutputStream;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import ravioli.gravioli.guiyo.Menu;
-import ravioli.gravioli.guiyo.gui.event.ItemClickEvent;
-import ravioli.gravioli.guiyo.gui.event.partition.MenuPartitionEvent;
-import ravioli.gravioli.guiyo.gui.partition.item.MenuItem;
-import ravioli.gravioli.guiyo.gui.property.MenuProperty;
+import org.yaml.snakeyaml.external.biz.base64Coder.Base64Coder;
+import ravioli.gravioli.stategui.Menu;
+import ravioli.gravioli.stategui.gui.event.ItemClickEvent;
+import ravioli.gravioli.stategui.gui.event.partition.MenuPartitionEvent;
+import ravioli.gravioli.stategui.gui.partition.item.MenuItem;
+import ravioli.gravioli.stategui.gui.partition.state.RenderPhase;
+import ravioli.gravioli.stategui.gui.property.MenuProperty;
+import ravioli.gravioli.stategui.gui.property.MenuPropertyEffect;
 
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 public abstract class MenuPartition<T extends MenuPartition<T>> {
     private final Player player;
-    private final List<MenuPropertyRenderCheck> properties = new ArrayList<>();
     private final List<MenuPartition<?>> partitions = new ArrayList<>();
+    private final List<MenuPropertyEffect> effects = new ArrayList<>();
+    private final Lock renderLock = new ReentrantLock();
 
     protected final Plugin plugin;
-    protected final List<MenuPartitionItem> items = new ArrayList<>();
+    protected final List<MenuPropertyRenderCheck> properties = new ArrayList<>();
     protected final Consumer<T> initConsumer;
+    protected final Map<RenderPhase, Map<Integer, MenuItem>> items = new ConcurrentHashMap<>();
 
-    private List<MenuPartitionItem> previousItems = new ArrayList<>();
+    private Map<Integer, MenuItem> previousItems = new HashMap<>();
     protected RootPartition rootPartition;
     protected MenuPartition<?> parentPartition;
     protected int width;
     protected int height;
     protected int x;
     protected int y;
+    protected int renderCount;
 
     private int propertyIndex;
-    private int renderCount;
+    private int effectIndex;
+    private RenderPhase renderPhase;
+    private String previousHash;
+    private boolean firstRender;
 
     public MenuPartition(@NotNull final Plugin plugin, @NotNull final Player player,
                          @NotNull final Consumer<T> initConsumer) {
         this.plugin = plugin;
         this.player = player;
-        this.initConsumer = initConsumer;
+        this.initConsumer = (partition) -> {
+            this.renderLock.lock();
+
+            try {
+                this.renderCount++;
+                this.propertyIndex = 0;
+                this.effectIndex = 0;
+                this.getItems().clear();
+
+                final Map<Integer, Consumer<ItemClickEvent>> clickEventMap = this.rootPartition.itemClickActions.get(this);
+
+                if (clickEventMap != null) {
+                    clickEventMap.clear();
+                }
+                initConsumer.accept(partition);
+
+                if (this.renderPhase == RenderPhase.REGULAR) {
+                    this.previousHash = this.hashContents();
+                }
+            } finally {
+                this.renderLock.unlock();
+            }
+        };
+        this.renderPhase = RenderPhase.REGULAR;
+        this.firstRender = true;
     }
 
     /**
@@ -161,11 +201,19 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
             final AtomicReference<Function<MenuPartition<?>, Boolean>> rerenderCheck = new AtomicReference<>();
 
             this.properties.add(new MenuPropertyRenderCheck(
-                new MenuProperty<>(this.plugin, property, this, rerenderCheck),
+                new MenuProperty<>(this.plugin, property, this),
                 rerenderCheck
             ));
         }
         return this.properties.get(this.propertyIndex++).menuProperty;
+    }
+
+    public void useEffect(@NotNull final Runnable effect, @NotNull final MenuProperty... dependencies) {
+        if (this.renderCount == 1) {
+            this.effects.add(new MenuPropertyEffect(effect, dependencies));
+        } else {
+            this.effects.get(this.effectIndex++).updateEffect(effect);
+        }
     }
 
     /**
@@ -215,20 +263,101 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
      */
     public abstract @NotNull Inventory getInventory();
 
-    public synchronized void render(@Nullable final MenuProperty menuProperty) {
-        this.propertyIndex = 0;
-        this.renderCount++;
-        this.items.clear();
+    protected @NotNull Map<Integer, MenuItem> getItems() {
+        if (!this.items.containsKey(this.renderPhase)) {
+            this.items.put(this.renderPhase, new ConcurrentHashMap<>());
+        }
+        return this.items.get(this.renderPhase);
+    }
 
+    protected @NotNull Map<Integer, MenuItem> getItems(@NotNull final RenderPhase renderPhase) {
+        return this.items.get(renderPhase);
+    }
+
+    private @NotNull String serializeItemStack(@NotNull final ItemStack itemStack) throws IllegalStateException {
+        try (
+            final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            final BukkitObjectOutputStream dataOutput = new BukkitObjectOutputStream(outputStream);
+        ) {
+            dataOutput.writeObject(itemStack);
+
+            return Base64Coder.encodeLines(outputStream.toByteArray());
+        } catch (final Exception e) {
+            throw new IllegalStateException("Unable to serialize item stacks.", e);
+        }
+    }
+
+    public void checkRefresh() {
+        final String hash = this.hashContents();
+
+        if (Objects.equals(hash, this.previousHash)) {
+            this.checkRefreshChildren();
+
+            return;
+        }
+        if (this.previousHash == null) {
+            this.previousHash = hash;
+            this.checkRefreshChildren();
+
+            return;
+        }
+        this.render();
+        this.checkRefreshChildren();
+    }
+
+    private void checkRefreshChildren() {
+        for (final MenuPartition<?> childPartition : this.partitions) {
+            childPartition.checkRefresh();
+        }
+    }
+
+    public @NotNull String hashContents() {
+        final JsonArray jsonHash = new JsonArray();
+
+        this.renderPhase = RenderPhase.CHECK;
+        this.initConsumer.accept((T) this);
+        this.renderPhase = RenderPhase.REGULAR;
+
+        if (this instanceof final RootPartition rootPartition && rootPartition.title != null) {
+            jsonHash.add(rootPartition.title.toString());
+        }
+        jsonHash.add(this.x);
+        jsonHash.add(this.y);
+        jsonHash.add(this.width);
+        jsonHash.add(this.height);
+
+        for (final MenuPropertyEffect effect : this.effects) {
+            if (effect.shouldRun(false)) {
+                jsonHash.add(UUID.randomUUID().toString());
+            }
+        }
+        for (final Map.Entry<Integer, MenuItem> menuItemEntry : this.getItems(RenderPhase.CHECK).entrySet()) {
+            jsonHash.add(menuItemEntry.getKey());
+
+            if (menuItemEntry.getValue().getItemStack() != null) {
+                jsonHash.add(this.serializeItemStack(menuItemEntry.getValue().getItemStack()));
+            }
+        }
+        return jsonHash.toString();
+    }
+
+    /**
+     * Called to render or re-render the items in this partition.
+     * It is not recommended to call this yourself, but can be done if an instant re-render is required.
+     *
+     * Note: Must be called in a thread that is not bukkit's primary thread.
+     */
+    public void render() {
         this.initConsumer.accept((T) this);
 
         final List<Integer> populatedSlots = new ArrayList<>();
 
         // TODO: Determine whether to check position constraints during render or during set
-        for (final MenuPartitionItem menuPartitionItem : this.items) {
-            final int slot = menuPartitionItem.slot;
+        for (final Map.Entry<Integer, MenuItem> menuItemEntry : this.getItems().entrySet()) {
+            final int slot = menuItemEntry.getKey();
+            final MenuItem menuItem = menuItemEntry.getValue();
             final ItemStack currentItemStack = Objects.requireNonNullElse(this.getInventory().getItem(slot), Menu.AIR);
-            final ItemStack newItemStack = menuPartitionItem.menuItem.getItemStack();
+            final ItemStack newItemStack = menuItem.getItemStack();
 
             if (newItemStack == null) {
                 continue;
@@ -242,41 +371,28 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
 
             populatedSlots.add(slot);
         }
-        for (final MenuPartitionItem menuPartitionItem : this.previousItems) {
-            final int slot = menuPartitionItem.slot;
+        for (final Map.Entry<Integer, MenuItem> menuItemEntry : this.previousItems.entrySet()) {
+            final int slot = menuItemEntry.getKey();
 
             if (populatedSlots.contains(slot)) {
                 continue;
             }
             this.getInventory().clear(slot);
         }
-        final Function<MenuPartition<?>, Boolean> rerenderCheck = menuProperty != null ?
-            this.properties.stream()
-                .filter((property) -> property.menuProperty.equals(menuProperty))
-                .findFirst()
-                .map((property) -> property.rerenderCheck.get())
-                .orElse(null) :
-            null;
+        for (final MenuPropertyEffect effect : this.effects) {
+            if (effect.shouldRun(true)) {
+                effect.runEffect(this.plugin);
+            }
+        }
+        if (!this.firstRender) {
+            return;
+        }
+        this.firstRender = false;
 
         for (final MenuPartition<?> menuPartition : this.partitions) {
-            if (rerenderCheck != null && !rerenderCheck.apply(menuPartition)) {
-                continue;
-            }
             menuPartition.render();
         }
-        this.previousItems = new ArrayList<>(this.items);
-    }
-
-    /**
-     * Called to render or re-render the items in this partition.
-     */
-    public synchronized void render() {
-        this.render(null);
-    }
-
-    record MenuPartitionItem(@NotNull MenuItem menuItem, @Nullable Consumer<ItemClickEvent> clickEventConsumer,
-                             int slot) {
-
+        this.previousItems = new HashMap<>(this.getItems());
     }
 
     private record MenuPropertyRenderCheck(@NotNull MenuProperty menuProperty,

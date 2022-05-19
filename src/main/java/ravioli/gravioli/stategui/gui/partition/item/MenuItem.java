@@ -1,9 +1,9 @@
-package ravioli.gravioli.guiyo.gui.partition.item;
+package ravioli.gravioli.stategui.gui.partition.item;
 
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import ravioli.gravioli.guiyo.gui.event.ItemClickEvent;
+import ravioli.gravioli.stategui.gui.event.ItemClickEvent;
 
 public interface MenuItem {
     void onClick(@NotNull ItemClickEvent event);

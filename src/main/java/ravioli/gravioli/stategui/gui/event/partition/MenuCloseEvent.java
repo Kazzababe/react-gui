@@ -1,4 +1,4 @@
-package ravioli.gravioli.guiyo.gui.event.partition;
+package ravioli.gravioli.stategui.gui.event.partition;
 
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.jetbrains.annotations.NotNull;

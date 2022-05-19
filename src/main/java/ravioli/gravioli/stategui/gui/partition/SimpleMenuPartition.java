@@ -1,4 +1,4 @@
-package ravioli.gravioli.guiyo.gui.partition;
+package ravioli.gravioli.stategui.gui.partition;
 
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
@@ -7,8 +7,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import ravioli.gravioli.guiyo.gui.event.ItemClickEvent;
-import ravioli.gravioli.guiyo.gui.partition.item.SimpleMenuItem;
+import ravioli.gravioli.stategui.gui.event.ItemClickEvent;
+import ravioli.gravioli.stategui.gui.partition.item.SimpleMenuItem;
 
 import java.util.function.Consumer;
 
@@ -33,12 +33,9 @@ public class SimpleMenuPartition extends MenuPartition<SimpleMenuPartition> {
         final int y = this.y + (slot / this.getWidth()); // 1 + 0
         final int itemSlot = y * this.parentPartition.width + x; // 1 * 9 + 1
 
-        this.items.add(
-            new MenuPartitionItem(
-                new SimpleMenuItem(itemStack, null),
-                null,
-                itemSlot
-            )
+        this.getItems().put(
+            itemSlot,
+            new SimpleMenuItem(itemStack, null)
         );
     }
 
@@ -48,13 +45,10 @@ public class SimpleMenuPartition extends MenuPartition<SimpleMenuPartition> {
         final int y = this.y + (slot / this.getWidth()); // 1 + 0
         final int itemSlot = y * this.parentPartition.width + x; // 1 * 9 + 1
 
-        this.items.add(
-            new MenuPartitionItem(
-                new SimpleMenuItem(itemStack, clickEventConsumer),
-                clickEventConsumer,
-                itemSlot
-            )
+        this.getItems().put(
+            itemSlot,
+            new SimpleMenuItem(itemStack, clickEventConsumer)
         );
-        this.rootPartition.setClickEventSlot(itemSlot, clickEventConsumer);
+        this.rootPartition.setClickEventSlot(this, itemSlot, clickEventConsumer);
     }
 }
