@@ -17,7 +17,6 @@ import ravioli.gravioli.stategui.gui.event.ItemClickEvent;
 import ravioli.gravioli.stategui.gui.event.partition.MenuPartitionEvent;
 import ravioli.gravioli.stategui.gui.partition.item.MenuItem;
 import ravioli.gravioli.stategui.gui.partition.state.RenderPhase;
-import ravioli.gravioli.stategui.gui.partition.state.RerenderType;
 import ravioli.gravioli.stategui.gui.property.MenuProperty;
 import ravioli.gravioli.stategui.gui.property.MenuPropertyEffect;
 
@@ -53,6 +52,7 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
     protected int height;
     protected int x;
     protected int y;
+    protected int renderCount;
 
     private int propertyIndex;
     private int effectIndex;
@@ -69,6 +69,7 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
             this.renderLock.lock();
 
             try {
+                this.renderCount++;
                 this.propertyIndex = 0;
                 this.effectIndex = 0;
                 this.getItems().clear();
@@ -197,7 +198,7 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
      * @return a menu property
      */
     public @NotNull <K> MenuProperty<K> useProperty(@Nullable final K property) {
-        if (this.initialRender) {
+        if (this.renderCount == 1) {
             // First render, add the property to the properties list
             final AtomicReference<Function<MenuPartition<?>, Boolean>> rerenderCheck = new AtomicReference<>();
 
@@ -223,7 +224,7 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
             return null;
         };
 
-        if (this.initialRender) {
+        if (this.renderCount == 1) {
             this.effects.add(new MenuPropertyEffect(cleanupRunnable, dependencies));
         } else {
             this.effects.get(this.effectIndex++).updateEffect(cleanupRunnable);
@@ -239,7 +240,7 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
      * @param dependencies any dependent properties
      */
     public void useEffect(@NotNull final MenuPropertyEffect.CleanupRunnable effect, @NotNull final MenuProperty... dependencies) {
-        if (this.initialRender) {
+        if (this.renderCount == 1) {
             this.effects.add(new MenuPropertyEffect(effect, dependencies));
         } else {
             this.effects.get(this.effectIndex++).updateEffect(effect);
@@ -252,7 +253,7 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
      * @param partitionConsumer the partition builder
      */
     public void usePartition(@NotNull final Consumer<SimpleMenuPartition> partitionConsumer) {
-        if (this.initialRender) {
+        if (this.renderCount == 1) {
             final SimpleMenuPartition menuPartition = new SimpleMenuPartition(this.plugin, this.player, partitionConsumer);
 
             menuPartition.rootPartition = this.rootPartition;
@@ -268,7 +269,7 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
      * @param partitionConsumer the partition builder
      */
     public void useMaskedPartition(@NotNull final Consumer<MaskedMenuPartition> partitionConsumer) {
-        if (this.initialRender) {
+        if (this.renderCount == 1) {
             final MaskedMenuPartition menuPartition = new MaskedMenuPartition(this.plugin, this.player, partitionConsumer);
 
             menuPartition.rootPartition = this.rootPartition;
@@ -326,22 +327,20 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
         Bukkit.getScheduler().runTaskLater(
             this.plugin,
             () -> {
+                final String hash = this.hashContents();
+
                 this.renderCheckQueued = false;
 
-                if (this.rootPartition.rerenderType == RerenderType.ONLY_ON_RENDER_CHANGE) {
-                    final String hash = this.hashContents();
+                if (Objects.equals(hash, this.previousHash)) {
+                    this.checkRefreshChildren();
 
-                    if (Objects.equals(hash, this.previousHash)) {
-                        this.checkRefreshChildren();
+                    return;
+                }
+                if (this.previousHash == null) {
+                    this.previousHash = hash;
+                    this.checkRefreshChildren();
 
-                        return;
-                    }
-                    if (this.previousHash == null) {
-                        this.previousHash = hash;
-                        this.checkRefreshChildren();
-
-                        return;
-                    }
+                    return;
                 }
                 this.render();
                 this.checkRefreshChildren();
