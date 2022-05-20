@@ -281,6 +281,22 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
     }
 
     /**
+     * Call property changes inside the specified runnable and re-render afterwards.
+     * Note: Batching property changes could be done automatically but the fact that Minecraft
+     *       can only update inventories 20 times a second, there's a noticeable delay when doing so.
+     *
+     * @param runnable the runnable containing property changes
+     */
+    public void batchPropertyChanges(@NotNull final Runnable runnable) {
+        this.renderCheckQueued = true;
+
+        runnable.run();
+
+        this.renderCheckQueued = false;
+        this.checkRefresh();
+    }
+
+    /**
      * Set the title of the menu inventory for the next render.
      * This will recreate the inventory with the new title unless it's the same as the title was during the previous render.
      *
@@ -323,33 +339,23 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
         if (this.renderCheckQueued) {
             return;
         }
-        this.renderCheckQueued = true;
+        if (this.rootPartition.rerenderType == RerenderType.ONLY_ON_RENDER_CHANGE) {
+            final String hash = this.hashContents();
 
-        Bukkit.getScheduler().runTaskLater(
-            this.plugin,
-            () -> {
-                this.renderCheckQueued = false;
-
-                if (this.rootPartition.rerenderType == RerenderType.ONLY_ON_RENDER_CHANGE) {
-                    final String hash = this.hashContents();
-
-                    if (Objects.equals(hash, this.previousHash)) {
-                        this.checkRefreshChildren();
-
-                        return;
-                    }
-                    if (this.previousHash == null) {
-                        this.previousHash = hash;
-                        this.checkRefreshChildren();
-
-                        return;
-                    }
-                }
-                this.render();
+            if (Objects.equals(hash, this.previousHash)) {
                 this.checkRefreshChildren();
-            },
-            0
-        );
+
+                return;
+            }
+            if (this.previousHash == null) {
+                this.previousHash = hash;
+                this.checkRefreshChildren();
+
+                return;
+            }
+        }
+        this.render();
+        this.checkRefreshChildren();
     }
 
     private void checkRefreshChildren() {
