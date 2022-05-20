@@ -17,6 +17,7 @@ import ravioli.gravioli.stategui.gui.event.ItemClickEvent;
 import ravioli.gravioli.stategui.gui.event.partition.MenuPartitionEvent;
 import ravioli.gravioli.stategui.gui.partition.item.MenuItem;
 import ravioli.gravioli.stategui.gui.partition.state.RenderPhase;
+import ravioli.gravioli.stategui.gui.partition.state.RerenderType;
 import ravioli.gravioli.stategui.gui.property.MenuProperty;
 import ravioli.gravioli.stategui.gui.property.MenuPropertyEffect;
 
@@ -325,20 +326,22 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
         Bukkit.getScheduler().runTaskLater(
             this.plugin,
             () -> {
-                final String hash = this.hashContents();
-
                 this.renderCheckQueued = false;
 
-                if (Objects.equals(hash, this.previousHash)) {
-                    this.checkRefreshChildren();
+                if (this.rootPartition.rerenderType == RerenderType.ONLY_ON_RENDER_CHANGE) {
+                    final String hash = this.hashContents();
 
-                    return;
-                }
-                if (this.previousHash == null) {
-                    this.previousHash = hash;
-                    this.checkRefreshChildren();
+                    if (Objects.equals(hash, this.previousHash)) {
+                        this.checkRefreshChildren();
 
-                    return;
+                        return;
+                    }
+                    if (this.previousHash == null) {
+                        this.previousHash = hash;
+                        this.checkRefreshChildren();
+
+                        return;
+                    }
                 }
                 this.render();
                 this.checkRefreshChildren();

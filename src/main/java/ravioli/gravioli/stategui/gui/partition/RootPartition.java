@@ -25,6 +25,7 @@ import ravioli.gravioli.stategui.gui.event.partition.BottomInventoryClickEvent;
 import ravioli.gravioli.stategui.gui.event.partition.MenuCloseEvent;
 import ravioli.gravioli.stategui.gui.event.partition.MenuPartitionEvent;
 import ravioli.gravioli.stategui.gui.partition.item.SimpleMenuItem;
+import ravioli.gravioli.stategui.gui.partition.state.RerenderType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -41,6 +42,8 @@ public class RootPartition extends MenuPartition<RootPartition> implements Inven
     protected final Map<Class<? extends MenuPartitionEvent>, Consumer<? extends MenuPartitionEvent>> partitionEvents = new HashMap<>();
 
     protected Component title;
+    protected RerenderType rerenderType;
+
     private Component previousTitle;
     private Inventory inventory;
 
@@ -55,13 +58,20 @@ public class RootPartition extends MenuPartition<RootPartition> implements Inven
         this.id = id;
         this.rootPartition = this;
         this.parentPartition = this;
+        this.rerenderType = RerenderType.ONLY_ON_RENDER_CHANGE;
 
         super.setWidth(9);
 
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
-    public NamespacedKey getKey() {
+    /**
+     * Get the key that is used to identify this menu/partition.
+     * This key can be used to fetch which menu the player has open with {@code Menu.isMenuOpen(player, key)}
+     *
+     * @return the menu key
+     */
+    public @NotNull NamespacedKey getKey() {
         return this.id;
     }
 
@@ -116,6 +126,16 @@ public class RootPartition extends MenuPartition<RootPartition> implements Inven
     @Override
     public @NotNull Inventory getInventory() {
         return this.inventory;
+    }
+
+    /**
+     * Set how the root partition/menu handles rerendering.
+     * It is recommended to keep this value consistent per menu and not set it in a variable manner.
+     *
+     * @param rerenderType rerender type
+     */
+    public void setRerenderType(@NotNull final RerenderType rerenderType) {
+        this.rerenderType = rerenderType;
     }
 
     public void setSlot(final int slot, @Nullable final ItemStack itemStack,
