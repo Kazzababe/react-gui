@@ -8,6 +8,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.DragType;
+import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
@@ -28,6 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 
 public class RootPartition extends MenuPartition<RootPartition> implements InventoryHolder, Listener {
@@ -190,7 +194,23 @@ public class RootPartition extends MenuPartition<RootPartition> implements Inven
 
     @EventHandler
     private void onDrag(final InventoryDragEvent event) {
-        if (event.getRawSlots().size() <= 1) {
+        final Set<Integer> rawSlots = event.getRawSlots();
+
+        if (rawSlots.isEmpty()) {
+            return;
+        }
+        if (rawSlots.size() == 1) {
+            final int slot = rawSlots.iterator().next();
+
+            this.onInventoryClick(new InventoryClickEvent(
+                event.getView(),
+                event.getView().getSlotType(slot),
+                slot,
+                event.getType() == DragType.SINGLE ?
+                    ClickType.RIGHT :
+                    ClickType.LEFT,
+                InventoryAction.UNKNOWN
+            ));
             return;
         }
         for (final int slot : event.getRawSlots()) {
