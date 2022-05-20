@@ -66,7 +66,7 @@ public class RootPartition extends MenuPartition<RootPartition> implements Inven
     }
 
     @Override
-    public void setTitle(@NotNull final Component title) {
+    public void setTitle(@Nullable final Component title) {
         this.title = title;
     }
 
@@ -80,40 +80,37 @@ public class RootPartition extends MenuPartition<RootPartition> implements Inven
         throw new UnsupportedOperationException("Cannot set the position of the root partition.");
     }
 
+    private @NotNull Inventory createInventory() {
+        if (this.title != null) {
+            return Bukkit.createInventory(this, this.getSize(), this.title);
+        }
+        return Bukkit.createInventory(this, this.getSize());
+    }
+
     private void refreshInventory() {
-        //final CountDownLatch latch = new CountDownLatch(1);
+        if (this.inventory == null) {
+            this.inventory = this.createInventory();
+            this.previousTitle = this.title;
+        } else if (!Objects.equals(this.previousTitle, this.title)) {
+            final Inventory newInventory = this.createInventory();
 
-        //Bukkit.getScheduler().runTask(this.plugin, () -> {
-            if (this.inventory == null) {
-                this.inventory = Bukkit.createInventory(this, this.getSize(), this.title);
-                this.previousTitle = this.title;
-            } else if (!Objects.equals(this.previousTitle, this.title)) {
-                final Inventory newInventory = Bukkit.createInventory(this, this.getSize(), this.title);
+            for (int i = 0; i < this.inventory.getSize(); i++) {
+                final ItemStack itemStack = this.inventory.getItem(i);
 
-                for (int i = 0; i < this.inventory.getSize(); i++) {
-                    final ItemStack itemStack = this.inventory.getItem(i);
-
-                    if (itemStack == null || itemStack.getType().isAir()) {
-                        continue;
-                    }
-                    newInventory.setItem(i, itemStack);
+                if (itemStack == null || itemStack.getType().isAir()) {
+                    continue;
                 }
-                final List<HumanEntity> viewers = new ArrayList<>(this.inventory.getViewers());
-
-                this.inventory = newInventory;
-                this.previousTitle = this.title;
-
-                for (final HumanEntity viewer : viewers) {
-                    viewer.openInventory(this.inventory);
-                }
+                newInventory.setItem(i, itemStack);
             }
-            //latch.countDown();
-        //});
-//        try {
-//            latch.await();
-//        } catch (final InterruptedException e) {
-//            throw new RuntimeException(e);
-//        }
+            final List<HumanEntity> viewers = new ArrayList<>(this.inventory.getViewers());
+
+            this.inventory = newInventory;
+            this.previousTitle = this.title;
+
+            for (final HumanEntity viewer : viewers) {
+                viewer.openInventory(this.inventory);
+            }
+        }
     }
 
     @Override
