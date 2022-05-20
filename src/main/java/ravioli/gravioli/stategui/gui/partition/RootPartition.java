@@ -201,8 +201,7 @@ public class RootPartition extends MenuPartition<RootPartition> implements Inven
         }
         if (rawSlots.size() == 1) {
             final int slot = rawSlots.iterator().next();
-
-            this.onInventoryClick(new InventoryClickEvent(
+            final InventoryClickEvent fakeEvent = new InventoryClickEvent(
                 event.getView(),
                 event.getView().getSlotType(slot),
                 slot,
@@ -210,7 +209,13 @@ public class RootPartition extends MenuPartition<RootPartition> implements Inven
                     ClickType.RIGHT :
                     ClickType.LEFT,
                 InventoryAction.UNKNOWN
-            ));
+            );
+
+            this.onInventoryClick(fakeEvent);
+
+            if (fakeEvent.isCancelled()) {
+                event.setCancelled(true);
+            }
             return;
         }
         for (final int slot : event.getRawSlots()) {
