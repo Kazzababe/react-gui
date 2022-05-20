@@ -209,6 +209,20 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
     }
 
     public void useEffect(@NotNull final Runnable effect, @NotNull final MenuProperty... dependencies) {
+        final MenuPropertyEffect.CleanupRunnable cleanupRunnable = () -> {
+            effect.run();
+
+            return null;
+        };
+
+        if (this.renderCount == 1) {
+            this.effects.add(new MenuPropertyEffect(cleanupRunnable, dependencies));
+        } else {
+            this.effects.get(this.effectIndex++).updateEffect(cleanupRunnable);
+        }
+    }
+
+    public void useEffect(@NotNull final MenuPropertyEffect.CleanupRunnable effect, @NotNull final MenuProperty... dependencies) {
         if (this.renderCount == 1) {
             this.effects.add(new MenuPropertyEffect(effect, dependencies));
         } else {
@@ -380,9 +394,7 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
             this.getInventory().clear(slot);
         }
         for (final MenuPropertyEffect effect : this.effects) {
-            if (effect.shouldRun(true)) {
-                effect.runEffect(this.plugin);
-            }
+            effect.runEffect(this.plugin, this.firstRender);
         }
         if (!this.firstRender) {
             return;

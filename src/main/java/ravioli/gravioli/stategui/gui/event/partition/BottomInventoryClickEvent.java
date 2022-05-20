@@ -1,6 +1,7 @@
 package ravioli.gravioli.stategui.gui.event.partition;
 
 import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -33,6 +34,15 @@ public class BottomInventoryClickEvent implements MenuPartitionEvent {
      */
     public @NotNull Inventory getClickedInventory() {
         return this.clickEvent.getClickedInventory();
+    }
+
+    /**
+     * Get the inventory action.
+     *
+     * @return the inventory action
+     */
+    public @NotNull InventoryAction getAction() {
+        return this.clickEvent.getAction();
     }
 
     /**
