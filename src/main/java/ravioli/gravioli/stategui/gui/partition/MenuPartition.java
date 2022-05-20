@@ -3,6 +3,7 @@ package ravioli.gravioli.stategui.gui.partition;
 import com.google.common.base.Preconditions;
 import com.google.gson.JsonArray;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -51,13 +52,13 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
     protected int height;
     protected int x;
     protected int y;
-    protected int renderCount;
 
     private int propertyIndex;
     private int effectIndex;
     private RenderPhase renderPhase;
     private String previousHash;
-    private boolean firstRender;
+    private boolean initialRender;
+    private boolean renderCheckQueued;
 
     public MenuPartition(@NotNull final Plugin plugin, @NotNull final Player player,
                          @NotNull final Consumer<T> initConsumer) {
@@ -67,7 +68,6 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
             this.renderLock.lock();
 
             try {
-                this.renderCount++;
                 this.propertyIndex = 0;
                 this.effectIndex = 0;
                 this.getItems().clear();
@@ -87,7 +87,7 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
             }
         };
         this.renderPhase = RenderPhase.REGULAR;
-        this.firstRender = true;
+        this.initialRender = true;
     }
 
     /**
@@ -196,7 +196,7 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
      * @return a menu property
      */
     public @NotNull <K> MenuProperty<K> useProperty(@Nullable final K property) {
-        if (this.renderCount == 1) {
+        if (this.initialRender) {
             // First render, add the property to the properties list
             final AtomicReference<Function<MenuPartition<?>, Boolean>> rerenderCheck = new AtomicReference<>();
 
@@ -208,6 +208,13 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
         return this.properties.get(this.propertyIndex++).menuProperty;
     }
 
+    /**
+     * Run a function after the partition is finished rendering.
+     * With optional dependencies (properties), this effect will only run when one of those dependencies is modified.
+     *
+     * @param effect the function
+     * @param dependencies any dependent properties
+     */
     public void useEffect(@NotNull final Runnable effect, @NotNull final MenuProperty... dependencies) {
         final MenuPropertyEffect.CleanupRunnable cleanupRunnable = () -> {
             effect.run();
@@ -215,15 +222,23 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
             return null;
         };
 
-        if (this.renderCount == 1) {
+        if (this.initialRender) {
             this.effects.add(new MenuPropertyEffect(cleanupRunnable, dependencies));
         } else {
             this.effects.get(this.effectIndex++).updateEffect(cleanupRunnable);
         }
     }
 
+    /**
+     * Run a function after the partition is finished rendering.
+     * With optional dependencies (properties), this effect will only run when one of those dependencies is modified.
+     * Before a partition is re-rendered, the cleanup function of the effect will be called.
+     *
+     * @param effect the function
+     * @param dependencies any dependent properties
+     */
     public void useEffect(@NotNull final MenuPropertyEffect.CleanupRunnable effect, @NotNull final MenuProperty... dependencies) {
-        if (this.renderCount == 1) {
+        if (this.initialRender) {
             this.effects.add(new MenuPropertyEffect(effect, dependencies));
         } else {
             this.effects.get(this.effectIndex++).updateEffect(effect);
@@ -236,7 +251,7 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
      * @param partitionConsumer the partition builder
      */
     public void usePartition(@NotNull final Consumer<SimpleMenuPartition> partitionConsumer) {
-        if (this.renderCount == 1) {
+        if (this.initialRender) {
             final SimpleMenuPartition menuPartition = new SimpleMenuPartition(this.plugin, this.player, partitionConsumer);
 
             menuPartition.rootPartition = this.rootPartition;
@@ -252,7 +267,7 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
      * @param partitionConsumer the partition builder
      */
     public void useMaskedPartition(@NotNull final Consumer<MaskedMenuPartition> partitionConsumer) {
-        if (this.renderCount == 1) {
+        if (this.initialRender) {
             final MaskedMenuPartition menuPartition = new MaskedMenuPartition(this.plugin, this.player, partitionConsumer);
 
             menuPartition.rootPartition = this.rootPartition;
@@ -302,21 +317,34 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
     }
 
     public void checkRefresh() {
-        final String hash = this.hashContents();
-
-        if (Objects.equals(hash, this.previousHash)) {
-            this.checkRefreshChildren();
-
+        if (this.renderCheckQueued) {
             return;
         }
-        if (this.previousHash == null) {
-            this.previousHash = hash;
-            this.checkRefreshChildren();
+        this.renderCheckQueued = true;
 
-            return;
-        }
-        this.render();
-        this.checkRefreshChildren();
+        Bukkit.getScheduler().runTaskLater(
+            this.plugin,
+            () -> {
+                final String hash = this.hashContents();
+
+                this.renderCheckQueued = false;
+
+                if (Objects.equals(hash, this.previousHash)) {
+                    this.checkRefreshChildren();
+
+                    return;
+                }
+                if (this.previousHash == null) {
+                    this.previousHash = hash;
+                    this.checkRefreshChildren();
+
+                    return;
+                }
+                this.render();
+                this.checkRefreshChildren();
+            },
+            0
+        );
     }
 
     private void checkRefreshChildren() {
@@ -394,12 +422,12 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
             this.getInventory().clear(slot);
         }
         for (final MenuPropertyEffect effect : this.effects) {
-            effect.runEffect(this.plugin, this.firstRender);
+            effect.runEffect(this.plugin, this.initialRender);
         }
-        if (!this.firstRender) {
+        if (!this.initialRender) {
             return;
         }
-        this.firstRender = false;
+        this.initialRender = false;
 
         for (final MenuPartition<?> menuPartition : this.partitions) {
             menuPartition.render();

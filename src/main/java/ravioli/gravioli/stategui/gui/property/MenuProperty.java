@@ -1,5 +1,6 @@
 package ravioli.gravioli.stategui.gui.property;
 
+import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -38,6 +39,5 @@ public class MenuProperty<T> {
         }
         this.value = value;
         this.menuPartition.checkRefresh();
-        //Bukkit.getScheduler().runTaskAsynchronously(this.plugin, this.menuPartition::checkRefresh);
     }
 }
