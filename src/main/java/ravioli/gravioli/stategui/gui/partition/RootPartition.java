@@ -188,12 +188,12 @@ public class RootPartition extends MenuPartition<RootPartition> implements Inven
         if (!inventory.equals(this.inventory)) {
             return;
         }
-        if (!(event.getPlayer() instanceof final Player player)) {
-            return;
-        }
         this.cleanupEffects();
         HandlerList.unregisterAll(this);
 
+        if (!(event.getPlayer() instanceof final Player player)) {
+            return;
+        }
         if (!this.partitionEvents.containsKey(MenuCloseEvent.class)) {
             return;
         }
