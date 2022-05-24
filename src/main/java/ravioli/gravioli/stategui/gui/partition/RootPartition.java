@@ -26,6 +26,7 @@ import ravioli.gravioli.stategui.gui.event.partition.MenuCloseEvent;
 import ravioli.gravioli.stategui.gui.event.partition.MenuPartitionEvent;
 import ravioli.gravioli.stategui.gui.partition.item.SimpleMenuItem;
 import ravioli.gravioli.stategui.gui.partition.state.RerenderType;
+import ravioli.gravioli.stategui.gui.property.MenuPropertyEffect;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -190,23 +191,20 @@ public class RootPartition extends MenuPartition<RootPartition> implements Inven
         if (!(event.getPlayer() instanceof final Player player)) {
             return;
         }
-        if (!this.partitionEvents.containsKey(MenuCloseEvent.class)) {
-            HandlerList.unregisterAll(this);
+        this.cleanupEffects();
+        HandlerList.unregisterAll(this);
 
+        if (!this.partitionEvents.containsKey(MenuCloseEvent.class)) {
             return;
         }
-        final Consumer<MenuCloseEvent> closeEvent =
-            (Consumer<MenuCloseEvent>) this.partitionEvents.get(MenuCloseEvent.class);
+        final Consumer<MenuCloseEvent> closeEvent = (Consumer<MenuCloseEvent>) this.partitionEvents.get(MenuCloseEvent.class);
         final MenuCloseEvent menuCloseEvent = new MenuCloseEvent(event.getReason());
 
         closeEvent.accept(menuCloseEvent);
 
         if (menuCloseEvent.isCancelled()) {
             Bukkit.getScheduler().runTaskLater(this.plugin, () -> player.openInventory(inventory), 1);
-
-            return;
         }
-        HandlerList.unregisterAll(this);
     }
 
     @EventHandler

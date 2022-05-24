@@ -12,7 +12,7 @@ public class MenuPropertyEffect {
 
     private final MenuProperty[] dependencies;
     private final Object[] previousValues;
-    private boolean ranLastRender;
+    private Runnable cleanup;
 
     public MenuPropertyEffect(@NotNull final CleanupRunnable effect, @NotNull final MenuProperty... dependencies) {
         this.effect = effect;
@@ -31,24 +31,17 @@ public class MenuPropertyEffect {
     public void runEffect(@NotNull final Plugin plugin, final boolean forceRun) {
         if (!forceRun) {
             if (!this.shouldRun(true)) {
-                this.ranLastRender = false;
-
                 return;
             }
         }
-        final boolean didRunLastRender = this.ranLastRender;
-
-        this.ranLastRender = true;
-
         for (int i = 0; i < this.dependencies.length; i++) {
             this.previousValues[i] = this.dependencies[i].get();
         }
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            final Runnable cleanup = this.effect.run();
-
-            if (didRunLastRender && cleanup != null) {
-                cleanup.run();
+            if (this.cleanup != null) {
+                this.cleanup.run();
             }
+            this.cleanup = this.effect.run();
         });
     }
 
@@ -64,6 +57,12 @@ public class MenuPropertyEffect {
             }
         }
         return false;
+    }
+
+    public void cleanup() {
+        if (this.cleanup != null) {
+            this.cleanup.run();
+        }
     }
 
     @FunctionalInterface

@@ -38,13 +38,13 @@ import java.util.function.Function;
 public abstract class MenuPartition<T extends MenuPartition<T>> {
     private final Player player;
     private final List<MenuPartition<?>> partitions = new ArrayList<>();
-    private final List<MenuPropertyEffect> effects = new ArrayList<>();
     private final Lock renderLock = new ReentrantLock();
 
     protected final Plugin plugin;
     protected final List<MenuPropertyRenderCheck> properties = new ArrayList<>();
     protected final Consumer<T> initConsumer;
     protected final Map<RenderPhase, Map<Integer, MenuItem>> items = new ConcurrentHashMap<>();
+    protected final List<MenuPropertyEffect> effects = new ArrayList<>();
 
     private Map<Integer, MenuItem> previousItems = new HashMap<>();
     protected RootPartition rootPartition;
@@ -320,6 +320,15 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
 
     protected @NotNull Map<Integer, MenuItem> getItems(@NotNull final RenderPhase renderPhase) {
         return this.items.get(renderPhase);
+    }
+
+    protected void cleanupEffects() {
+        for (final MenuPropertyEffect effect : this.effects) {
+            effect.cleanup();
+        }
+        for (final MenuPartition<?> child : this.partitions) {
+            child.cleanupEffects();
+        }
     }
 
     private @NotNull String serializeItemStack(@NotNull final ItemStack itemStack) throws IllegalStateException {
