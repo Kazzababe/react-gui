@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'maven-publish'
+    id "com.bonitasoft.gradle.maven-settings" version "0.7.4"
 }
 
 group 'ravioli.gravioli'
@@ -49,4 +50,8 @@ mavenSettings {
     if (System.getenv("CI") != null) {
         userSettingsFileName = System.getenv("TV_MAVEN_SETTINGS")
     }
+}
+
+java {
+    toolchain.languageVersion.set(JavaLanguageVersion.of(17))
 }
