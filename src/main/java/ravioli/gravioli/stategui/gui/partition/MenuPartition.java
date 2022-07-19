@@ -32,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -212,6 +213,29 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
     }
 
     /**
+     * Create a menu property that will persist through partition renders.
+     * Setting the value of the property will cause a re-render of this partition and any children partitions
+     * provided the value is different from the previous value.
+     *
+     * @param property the original value of the property
+     *
+     * @return a menu property
+     */
+    public @NotNull <K> MenuProperty<K> useProperty(@Nullable final K property,
+                                                    @NotNull final BiFunction<K, K, Boolean> equalityCheck) {
+        if (this.renderCount == 1) {
+            // First render, add the property to the properties list
+            final AtomicReference<Function<MenuPartition<?>, Boolean>> rerenderCheck = new AtomicReference<>();
+
+            this.properties.add(new MenuPropertyRenderCheck(
+                new MenuProperty<>(this.plugin, property, this, equalityCheck),
+                rerenderCheck
+            ));
+        }
+        return this.properties.get(this.propertyIndex++).menuProperty;
+    }
+
+    /**
      * Run a function after the partition is finished rendering.
      * With optional dependencies (properties), this effect will only run when one of those dependencies is modified.
      *
@@ -294,6 +318,13 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
 
         this.renderCheckQueued = false;
         this.checkRefresh();
+    }
+
+    /**
+     * Close the menu.
+     */
+    public void close() {
+        Bukkit.getScheduler().getMainThreadExecutor(this.plugin).execute(this.player::closeInventory);
     }
 
     /**

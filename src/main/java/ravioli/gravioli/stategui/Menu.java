@@ -26,6 +26,18 @@ public class Menu {
         });
     }
 
+    public static void openMenu(@NotNull final String key, @NotNull final Plugin plugin, @NotNull final Player player,
+                                @NotNull final Consumer<RootPartition> partitionConsumer) {
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            final NamespacedKey namespacedKey = new NamespacedKey(plugin, key);
+            final RootPartition rootPartition = new RootPartition(namespacedKey, plugin, player, partitionConsumer);
+
+            rootPartition.render();
+
+            Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(rootPartition.getInventory()));
+        });
+    }
+
     public static boolean isMenuOpen(@NotNull final Player player, @NotNull final NamespacedKey key) {
         final Inventory inventory = player.getOpenInventory().getTopInventory();
 

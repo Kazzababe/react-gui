@@ -1,5 +1,6 @@
 package ravioli.gravioli.stategui.gui.partition;
 
+import com.google.common.base.Preconditions;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
@@ -26,6 +27,30 @@ public class SimpleMenuPartition extends MenuPartition<SimpleMenuPartition> {
     @Override
     public @NotNull Inventory getInventory() {
         return this.rootPartition.getInventory();
+    }
+
+    public void setSlot(final int x, final int y, @Nullable final ItemStack itemStack) {
+        Preconditions.checkArgument(x < this.getWidth(), "Cannot put an item outside of a partition's width.");
+        Preconditions.checkArgument(y < this.getHeight(), "Cannot put an item outside of a partition's height.");
+
+        this.getItems().put(
+            y * this.getWidth() + x,
+            new SimpleMenuItem(itemStack, null)
+        );
+    }
+
+    public void setSlot(final int x, final int y, @Nullable final ItemStack itemStack,
+                        @NotNull final Consumer<ItemClickEvent> clickEventConsumer) {
+        Preconditions.checkArgument(x < this.getWidth(), "Cannot put an item outside of a partition's width.");
+        Preconditions.checkArgument(y < this.getHeight(), "Cannot put an item outside of a partition's height.");
+
+        final int slot = y * this.getWidth() + x;
+
+        this.getItems().put(
+            slot,
+            new SimpleMenuItem(itemStack, null)
+        );
+        this.rootPartition.setClickEventSlot(this, slot, clickEventConsumer);
     }
 
     public void setSlot(final int slot, @Nullable final ItemStack itemStack) {

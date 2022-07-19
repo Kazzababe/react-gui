@@ -6,6 +6,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
+import java.util.function.BiFunction;
 
 public class MenuPropertyEffect {
     private CleanupRunnable effect;
@@ -29,10 +30,8 @@ public class MenuPropertyEffect {
     }
 
     public void runEffect(@NotNull final Plugin plugin, final boolean forceRun) {
-        if (!forceRun) {
-            if (!this.shouldRun(true)) {
-                return;
-            }
+        if (!forceRun && !this.shouldRun(true)) {
+            return;
         }
         for (int i = 0; i < this.dependencies.length; i++) {
             this.previousValues[i] = this.dependencies[i].get();
@@ -50,9 +49,19 @@ public class MenuPropertyEffect {
             return true;
         }
         for (int i = 0; i < this.dependencies.length; i++) {
+            final MenuProperty<?> dependency = this.dependencies[i];
             final Object previousValue = this.previousValues[i];
+            final Object currentValue = dependency.get();
 
-            if (!Objects.equals(previousValue, this.dependencies[i].get())) {
+            if (currentValue == null && previousValue == null) {
+                continue;
+            }
+            if (currentValue == null || previousValue == null) {
+                return true;
+            }
+            final BiFunction<Object, Object, Boolean> equalityCheck = (BiFunction<Object, Object, Boolean>) dependency.getEqualityCheck();
+
+            if (!equalityCheck.apply(currentValue, previousValue)) {
                 return true;
             }
         }

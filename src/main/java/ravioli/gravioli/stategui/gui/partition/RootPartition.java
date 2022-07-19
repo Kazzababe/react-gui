@@ -1,5 +1,6 @@
 package ravioli.gravioli.stategui.gui.partition;
 
+import com.google.common.base.Preconditions;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
@@ -137,6 +138,30 @@ public class RootPartition extends MenuPartition<RootPartition> implements Inven
      */
     public void setRerenderType(@NotNull final RerenderType rerenderType) {
         this.rerenderType = rerenderType;
+    }
+
+    public void setSlot(final int x, final int y, @Nullable final ItemStack itemStack) {
+        Preconditions.checkArgument(x < this.getWidth(), "Cannot put an item outside of a partition's width.");
+        Preconditions.checkArgument(y < this.getHeight(), "Cannot put an item outside of a partition's height.");
+
+        this.getItems().put(
+            y * this.getWidth() + x,
+            new SimpleMenuItem(itemStack, null)
+        );
+    }
+
+    public void setSlot(final int x, final int y, @Nullable final ItemStack itemStack,
+                        @NotNull final Consumer<ItemClickEvent> clickEventConsumer) {
+        Preconditions.checkArgument(x < this.getWidth(), "Cannot put an item outside of a partition's width.");
+        Preconditions.checkArgument(y < this.getHeight(), "Cannot put an item outside of a partition's height.");
+
+        final int slot = y * this.getWidth() + x;
+
+        this.getItems().put(
+            slot,
+            new SimpleMenuItem(itemStack, null)
+        );
+        this.setClickEventSlot(this, slot, clickEventConsumer);
     }
 
     public void setSlot(final int slot, @Nullable final ItemStack itemStack,
