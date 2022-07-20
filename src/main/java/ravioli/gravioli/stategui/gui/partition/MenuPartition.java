@@ -46,6 +46,7 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
     protected final Consumer<T> initConsumer;
     protected final Map<RenderPhase, Map<Integer, MenuItem>> items = new ConcurrentHashMap<>();
     protected final List<MenuPropertyEffect> effects = new ArrayList<>();
+    private final Object refreshLock = new Object();
 
     private Map<Integer, MenuItem> previousItems = new HashMap<>();
     protected RootPartition rootPartition;
@@ -376,26 +377,30 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
     }
 
     public void checkRefresh() {
-        if (this.renderCheckQueued) {
-            return;
-        }
-        if (this.rootPartition.rerenderType == RerenderType.ONLY_ON_RENDER_CHANGE) {
-            final String hash = this.hashContents();
+        Bukkit.getScheduler().runTaskAsynchronously(this.plugin, () -> {
+            synchronized (this.refreshLock) {
+                if (this.renderCheckQueued) {
+                    return;
+                }
+                if (this.rootPartition.rerenderType == RerenderType.ONLY_ON_RENDER_CHANGE) {
+                    final String hash = this.hashContents();
 
-            if (Objects.equals(hash, this.previousHash)) {
+                    if (Objects.equals(hash, this.previousHash)) {
+                        this.checkRefreshChildren();
+
+                        return;
+                    }
+                    if (this.previousHash == null) {
+                        this.previousHash = hash;
+                        this.checkRefreshChildren();
+
+                        return;
+                    }
+                }
+                this.render();
                 this.checkRefreshChildren();
-
-                return;
             }
-            if (this.previousHash == null) {
-                this.previousHash = hash;
-                this.checkRefreshChildren();
-
-                return;
-            }
-        }
-        this.render();
-        this.checkRefreshChildren();
+        });
     }
 
     private void checkRefreshChildren() {
@@ -440,7 +445,7 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
      *
      * Note: Must be called in a thread that is not bukkit's primary thread.
      */
-    public void render() {
+    public synchronized void render() {
         this.initConsumer.accept((T) this);
 
         final List<Integer> populatedSlots = new ArrayList<>();
