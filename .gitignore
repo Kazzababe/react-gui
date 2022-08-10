@@ -126,4 +126,5 @@ GPUCache/
 .gradle/
 build/
 run/
-copy.sh
+.gitlab-ci.yml
+.gradle

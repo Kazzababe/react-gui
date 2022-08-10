@@ -37,7 +37,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 public abstract class MenuPartition<T extends MenuPartition<T>> {
-    private final Player player;prote
+    private final Player player;
     private final List<MenuPartition<?>> partitions = new ArrayList<>();
     private final Lock renderLock = new ReentrantLock();
 
