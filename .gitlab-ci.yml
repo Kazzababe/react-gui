@@ -1,7 +1,0 @@
-include:
-  - project: "teamvisionary/ci-templates"
-    file: "java.yml"
-    ref: "main"
-
-gradle_build_publish:
-  extends: .gradle_build_publish
