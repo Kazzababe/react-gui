@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'maven-publish'
+    id "com.bonitasoft.gradle.maven-settings" version "0.7.4"
 }
 
 group 'ravioli.gravioli'
@@ -11,6 +12,11 @@ repositories {
 
     maven {
         url 'https://papermc.io/repo/repository/maven-public/'
+    }
+
+    maven {
+        name = 'teamvisionary'
+        url = 'https://gitlab.com/api/v4/groups/52654584/-/packages/maven'
     }
 }
 
@@ -29,6 +35,20 @@ publishing {
         maven(MavenPublication) {
             from components.java
         }
+    }
+
+    repositories {
+        maven {
+            name = 'teamvisionary'
+            url = 'https://gitlab.com/api/v4/projects/' + System.getenv("CI_PROJECT_ID") + '/packages/maven'
+        }
+    }
+
+}
+
+mavenSettings {
+    if (System.getenv("CI") != null) {
+        userSettingsFileName = System.getenv("TV_MAVEN_SETTINGS")
     }
 }
 

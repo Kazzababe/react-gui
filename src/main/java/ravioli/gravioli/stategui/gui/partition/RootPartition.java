@@ -116,12 +116,15 @@ public class RootPartition extends MenuPartition<RootPartition> implements Inven
             }
             final List<HumanEntity> viewers = new ArrayList<>(this.inventory.getViewers());
 
+            this.inventory.clear();
             this.inventory = newInventory;
             this.previousTitle = this.title;
 
-            for (final HumanEntity viewer : viewers) {
-                viewer.openInventory(this.inventory);
-            }
+            Bukkit.getScheduler().getMainThreadExecutor(this.plugin).execute(() -> {
+                for (final HumanEntity viewer : viewers) {
+                    viewer.openInventory(this.inventory);
+                }
+            });
         }
     }
 
