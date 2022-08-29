@@ -21,13 +21,10 @@ import ravioli.gravioli.stategui.gui.partition.state.RerenderType;
 import ravioli.gravioli.stategui.gui.property.MenuProperty;
 import ravioli.gravioli.stategui.gui.property.MenuPropertyEffect;
 
+import java.awt.*;
 import java.io.ByteArrayOutputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
@@ -352,6 +349,13 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
 
     protected @NotNull Map<Integer, MenuItem> getItems(@NotNull final RenderPhase renderPhase) {
         return this.items.get(renderPhase);
+    }
+
+    public @NotNull Point getTranslatedPosition(final int x, final int y) {
+        if (this.parentPartition == this) {
+            return new Point(x, y);
+        }
+        return this.parentPartition.getTranslatedPosition(this.x + x, this.y + y);
     }
 
     protected void cleanupEffects() {

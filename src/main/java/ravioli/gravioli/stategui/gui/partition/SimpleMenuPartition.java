@@ -11,6 +11,7 @@ import org.jetbrains.annotations.Nullable;
 import ravioli.gravioli.stategui.gui.event.ItemClickEvent;
 import ravioli.gravioli.stategui.gui.partition.item.SimpleMenuItem;
 
+import java.awt.*;
 import java.util.function.Consumer;
 
 public class SimpleMenuPartition extends MenuPartition<SimpleMenuPartition> {
@@ -33,8 +34,8 @@ public class SimpleMenuPartition extends MenuPartition<SimpleMenuPartition> {
         Preconditions.checkArgument(x < this.width, "Cannot put an item outside of a partition's width.");
         Preconditions.checkArgument(y < this.height, "Cannot put an item outside of a partition's height.");
 
-        final int slot = (this.y * this.parentPartition.width + this.x + this.parentPartition.x) +
-            (y * this.width + x);
+        final Point position = this.getTranslatedPosition(x, y);
+        final int slot = position.y * 9 + position.x;
 
         this.getItems().put(
             slot,
@@ -47,8 +48,8 @@ public class SimpleMenuPartition extends MenuPartition<SimpleMenuPartition> {
         Preconditions.checkArgument(x < this.width, "Cannot put an item outside of a partition's width.");
         Preconditions.checkArgument(y < this.height, "Cannot put an item outside of a partition's height.");
 
-        final int slot = (this.y * this.parentPartition.width + this.x + this.parentPartition.x) +
-            (y * this.width + x);
+        final Point position = this.getTranslatedPosition(x, y);
+        final int slot = position.y * 9 + position.x;
 
         this.getItems().put(
             slot,
