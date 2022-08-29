@@ -30,21 +30,25 @@ public class SimpleMenuPartition extends MenuPartition<SimpleMenuPartition> {
     }
 
     public void setSlot(final int x, final int y, @Nullable final ItemStack itemStack) {
-        Preconditions.checkArgument(x < this.getWidth(), "Cannot put an item outside of a partition's width.");
-        Preconditions.checkArgument(y < this.getHeight(), "Cannot put an item outside of a partition's height.");
+        Preconditions.checkArgument(x < this.width, "Cannot put an item outside of a partition's width.");
+        Preconditions.checkArgument(y < this.height, "Cannot put an item outside of a partition's height.");
+
+        final int slot = (this.y * this.parentPartition.width + this.x + this.parentPartition.x) +
+            (y * this.width + x);
 
         this.getItems().put(
-            y * this.getWidth() + x,
+            slot,
             new SimpleMenuItem(itemStack, null)
         );
     }
 
     public void setSlot(final int x, final int y, @Nullable final ItemStack itemStack,
                         @NotNull final Consumer<ItemClickEvent> clickEventConsumer) {
-        Preconditions.checkArgument(x < this.getWidth(), "Cannot put an item outside of a partition's width.");
-        Preconditions.checkArgument(y < this.getHeight(), "Cannot put an item outside of a partition's height.");
+        Preconditions.checkArgument(x < this.width, "Cannot put an item outside of a partition's width.");
+        Preconditions.checkArgument(y < this.height, "Cannot put an item outside of a partition's height.");
 
-        final int slot = y * this.getWidth() + x;
+        final int slot = (this.y * this.parentPartition.width + this.x + this.parentPartition.x) +
+            (y * this.width + x);
 
         this.getItems().put(
             slot,
@@ -54,8 +58,8 @@ public class SimpleMenuPartition extends MenuPartition<SimpleMenuPartition> {
     }
 
     public void setSlot(final int slot, @Nullable final ItemStack itemStack) {
-        final int x = this.x + (slot % this.getWidth()); // 1 + 0
-        final int y = this.y + (slot / this.getWidth()); // 1 + 0
+        final int x = this.x + (slot % this.width); // 1 + 0
+        final int y = this.y + (slot / this.width); // 1 + 0
         final int itemSlot = y * this.parentPartition.width + x; // 1 * 9 + 1
 
         this.getItems().put(
@@ -66,8 +70,8 @@ public class SimpleMenuPartition extends MenuPartition<SimpleMenuPartition> {
 
     public void setSlot(final int slot, @Nullable final ItemStack itemStack,
                         @NotNull final Consumer<ItemClickEvent> clickEventConsumer) {
-        final int x = this.x + (slot % this.getWidth()); // 1 + 0
-        final int y = this.y + (slot / this.getWidth()); // 1 + 0
+        final int x = this.x + (slot % this.width); // 1 + 0
+        final int y = this.y + (slot / this.width); // 1 + 0
         final int itemSlot = y * this.parentPartition.width + x; // 1 * 9 + 1
 
         this.getItems().put(
