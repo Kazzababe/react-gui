@@ -2,6 +2,8 @@ package ravioli.gravioli.stategui.gui.partition;
 
 import com.google.common.base.Preconditions;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -32,6 +34,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public abstract class MenuPartition<T extends MenuPartition<T>> {
     private final Player player;
@@ -81,7 +84,7 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
                 }
                 initConsumer.accept(partition);
 
-                if (this.renderPhase == RenderPhase.REGULAR) {
+                if (this.renderPhase == RenderPhase.REGULAR && this.rootPartition.rerenderType == RerenderType.ONLY_ON_RENDER_CHANGE) {
                     this.previousHash = this.hashContents();
                 }
             } finally {
@@ -215,6 +218,28 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
      * Setting the value of the property will cause a re-render of this partition and any children partitions
      * provided the value is different from the previous value.
      *
+     * @param propertySupplier the original value of the property supplied via a function
+     *
+     * @return a menu property
+     */
+    public @NotNull <K> MenuProperty<K> useProperty(@NotNull final Supplier<K> propertySupplier) {
+        if (this.renderCount == 1) {
+            // First render, add the property to the properties list
+            final AtomicReference<Function<MenuPartition<?>, Boolean>> rerenderCheck = new AtomicReference<>();
+
+            this.properties.add(new MenuPropertyRenderCheck(
+                new MenuProperty<>(this.plugin, propertySupplier, this),
+                rerenderCheck
+            ));
+        }
+        return this.properties.get(this.propertyIndex++).menuProperty;
+    }
+
+    /**
+     * Create a menu property that will persist through partition renders.
+     * Setting the value of the property will cause a re-render of this partition and any children partitions
+     * provided the value is different from the previous value.
+     *
      * @param property the original value of the property
      *
      * @return a menu property
@@ -227,6 +252,30 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
 
             this.properties.add(new MenuPropertyRenderCheck(
                 new MenuProperty<>(this.plugin, property, this, equalityCheck),
+                rerenderCheck
+            ));
+        }
+        return this.properties.get(this.propertyIndex++).menuProperty;
+    }
+
+    /**
+     * Create a menu property that will persist through partition renders.
+     * Setting the value of the property will cause a re-render of this partition and any children partitions
+     * provided the value is different from the previous value.
+     *
+     * @param propertySupplier the original value of the property provided via a function
+     * @param equalityCheck custom equality check
+     *
+     * @return a menu property
+     */
+    public @NotNull <K> MenuProperty<K> useProperty(@Nullable final Supplier<K> propertySupplier,
+                                                    @NotNull final BiFunction<K, K, Boolean> equalityCheck) {
+        if (this.renderCount == 1) {
+            // First render, add the property to the properties list
+            final AtomicReference<Function<MenuPartition<?>, Boolean>> rerenderCheck = new AtomicReference<>();
+
+            this.properties.add(new MenuPropertyRenderCheck(
+                new MenuProperty<>(this.plugin, propertySupplier, this, equalityCheck),
                 rerenderCheck
             ));
         }
@@ -368,21 +417,12 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
     }
 
     private @NotNull String serializeItemStack(@NotNull final ItemStack itemStack) throws IllegalStateException {
-        try (
-            final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            final BukkitObjectOutputStream dataOutput = new BukkitObjectOutputStream(outputStream);
-        ) {
-            dataOutput.writeObject(itemStack);
-
-            return Base64Coder.encodeLines(outputStream.toByteArray());
-        } catch (final Exception e) {
-            throw new IllegalStateException("Unable to serialize item stacks.", e);
-        }
+        return Arrays.toString(itemStack.serializeAsBytes());
     }
 
     public void checkRefresh() {
-        Bukkit.getScheduler().runTaskAsynchronously(this.plugin, () -> {
-            synchronized (this.refreshLock) {
+        //Bukkit.getScheduler().runTaskAsynchronously(this.plugin, () -> {
+            //synchronized (this.refreshLock) {
                 if (this.renderCheckQueued) {
                     return;
                 }
@@ -403,8 +443,8 @@ public abstract class MenuPartition<T extends MenuPartition<T>> {
                 }
                 this.render();
                 this.checkRefreshChildren();
-            }
-        });
+            //}
+        //});
     }
 
     private void checkRefreshChildren() {

@@ -196,6 +196,9 @@ public class RootPartition extends MenuPartition<RootPartition> implements Inven
         final Inventory inventory = event.getClickedInventory();
 
         if (inventory == null || !inventory.equals(this.inventory)) {
+            if (Objects.equals(inventory, this.getPlayer().getInventory()) && event.getClick().isShiftClick()) {
+                event.setCancelled(true);
+            }
             return;
         }
         event.setCancelled(true);

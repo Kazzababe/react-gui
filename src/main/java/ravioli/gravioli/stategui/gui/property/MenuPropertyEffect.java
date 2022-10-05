@@ -40,7 +40,7 @@ public class MenuPropertyEffect {
             if (this.cleanup != null) {
                 this.cleanup.run();
             }
-            this.cleanup = this.effect.run();
+            this.cleanup = Objects.requireNonNullElse(this.effect.run(), () -> {});
         });
     }
 
